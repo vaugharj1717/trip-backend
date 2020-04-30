@@ -1,10 +1,144 @@
 const express = require('express');
 const app = express();
+const cors = require('cors');
+const mysql = require('mysql');
+const fs = require('fs');
+const bcrypt = require('bcrypt');
+const session = require('express-session');
 
-app.get('/', (req, res) => {
-    res.send("Service Test");
+
+app.use(cors());
+app.use(express.json());
+app.use(session({secret: "shhh", saveUninitialized: false, resave: true}));
+
+const port = 3444;
+
+let credentials = JSON.parse(fs.readFileSync('credentials.json', 'utf-8'));
+let connection = mysql.createConnection(credentials);
+connection.connect();
+
+app.use(function(req, res, next) {
+    if (req.session && req.session.user) {
+        req.userid = req.session.userid;
+    }
+    next();
+});
+
+app.post('/register', (req, res) => {
+    const username = req.body.username;
+    const email = req.body.email;
+    bcrypt.hash(req.body.password, 10, (err, password) => {
+        const query = 'INSERT INTO user(username, password, email) VALUES (?, ?, ?)';
+        const params = [username, password, email];
+        connection.query(query, params, (err, result) => {
+            if(!err){
+                res.send({ok: true});
+            }
+            else {
+                res.send({ok: false});
+            }
+        });
+    });
+});
+
+app.post('/login', async (req, res) => {
+    const username = req.body.username;
+    const query = "SELECT id, username, password FROM user u WHERE username = ?";
+    const params = [username];
+    connection.query(query, params, (err, rows) => {
+        if(!err){
+            if(rows.length > 0){
+                bcrypt.compare(req.body.password, rows[0].password, (err, correct) => {
+                    if(correct){
+                        const query = 'SELECT id, name FROM trip WHERE userid = ?';
+                        const params = [rows[0].id];
+                        connection.query(query, params, (err, trips) =>{
+                            const allTrips = trips.map(trip => {return {id: trip.id, name: trip.name}});
+                            console.log(allTrips);
+                            res.send({ok: true, success: true, username: rows[0].username, userid: rows[0].id, trips: allTrips});
+                        })
+                    }
+                    else{
+                        console.error("Error 1");
+                        res.send({ok: true, success: false})
+                    }
+                });
+            }
+            else{
+                res.send({ok: true, success: false})
+            }
+            
+        }
+        else {
+            console.error(err);
+            res.send({ok: false});
+        }
+    })
+});
+
+app.get('/logout', (req, res) => {
+    res.send({ok: true});
+});
+
+app.post('/trip', (req, res) => {
+    const userid = req.body.userid;
+    const query = `INSERT INTO trip(userid, name) VALUES (?, 'New Trip')`;
+    const params = [userid];
+    connection.query(query, params, (err, result) => {
+        if(!err){
+            res.send({ok: true, id: result.insertId});
+        }
+        else{
+            res.send({ok: false});
+        }
+    });
+});
+
+app.patch('/trip', (req, res) => {
+    const id = req.body.id;
+    const name = req.body.name;
+    const query = 'UPDATE trip SET name = ? WHERE id = ?';
+    const params = [name, id];
+    connection.query(query, params, (err, result) => {
+        if(!err){
+            res.send({ok: true});
+        }
+        else{
+            console.error(err);
+        }
+    })
 })
 
-app.listen(3443, () => {
-    console.log("Listening on port 3443");
+app.delete('/trip', (req, res) => {
+    const id = req.body.id;
+    console.log(JSON.stringify(req.body.id));
+    const query = "DELETE FROM trip WHERE id = ?";
+    const params = [id];
+    connection.query(query, params, (err, response) => {
+        if(!err){
+            res.send({ok: true});
+        }
+        else{
+            console.error(err);
+        }
+    })
+});
+
+app.get('/trip/:id', (req, res) => {
+    const id = req.params.id;
+    query = "SELECT * FROM destination WHERE tripid = ?";
+    params = [id];
+    connection.query(query, params, (err, rows) => {
+        if(!err){
+            const destinations = rows.map(row => ({id: row.id, name: row.name, dindex: row.dindex, tripid: row.tripid, placeid: row.placeid }));
+            res.send({ok: true, destinations: destinations});
+        }
+        else{
+            console.error(err);
+        }
+    })
+})
+
+app.listen(port, () => {
+    console.log(`Listening on port ${port}`);
 });
