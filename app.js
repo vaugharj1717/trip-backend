@@ -5,13 +5,15 @@ const mysql = require('mysql');
 const fs = require('fs');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
-
+const fetch = require('node-fetch');
 
 app.use(cors());
 app.use(express.json());
 app.use(session({secret: "shhh", saveUninitialized: false, resave: true}));
 
 const port = 3444;
+const apikey = 'AIzaSyBmWLOxG5pppuLMUMnrr62pTsSzhTsxxl8';
+const autocompleteHost = `https://maps.googleapis.com/maps/api/place/autocomplete/json?key=${apikey}&types=(cities)&components=country:us`;
 
 let credentials = JSON.parse(fs.readFileSync('credentials.json', 'utf-8'));
 let connection = mysql.createConnection(credentials);
@@ -166,7 +168,7 @@ app.get('/sessiontoken/:id', (req, res) => {
     });
 });
 
-app.get('/autocomplete', (req, res) =>{
+app.post('/autocomplete', (req, res) =>{
         const token = req.body.token;
         const text = req.body.text;
         //TODO: turn spaces into + signs and abort if a character contains non-number,alpha, or space
@@ -174,19 +176,20 @@ app.get('/autocomplete', (req, res) =>{
         fetch(`${autocompleteHost}&sessiontoken=${token}&input=${text}`)
         .then(response => response.json())
         .then(data => {
-            if(data.ok){
+            if(data.status === "OK"){
                 console.log(data);
                 const guesses = data.predictions.map(prediction => {return {id: prediction.id, name: prediction.description}});
-                res.send(guesses);
+                res.send({ok: true, guesses});
             }
             else{
                 console.error(data);
-                res.send({guesses: []});
+                res.send({ok: true, guesses: []});
             }
         })
         .catch(err => console.error(err));
     }
-})
+);
+
 
 app.listen(port, () => {
     console.log(`Listening on port ${port}`);
