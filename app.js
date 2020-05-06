@@ -32,7 +32,7 @@ app.post('/register', (req, res) => {
         const params = [username, password, email];
         connection.query(query, params, (err, result) => {
             if(!err){
-                res.send({ok: true});
+                res.send({ok: true, id: result.insertId});
             }
             else {
                 res.send({ok: false});
@@ -107,7 +107,7 @@ app.patch('/trip', (req, res) => {
             console.error(err);
         }
     })
-})
+});
 
 app.delete('/trip', (req, res) => {
     const id = req.body.id;
@@ -137,6 +137,55 @@ app.get('/trip/:id', (req, res) => {
             console.error(err);
         }
     })
+});
+
+app.get('/sessiontoken/:id', (req, res) => {
+    const query = "SELECT sessiontoken FROM user WHERE id = ?";
+    const params = [req.params.id];
+    console.log(JSON.stringify(req.params));
+    connection.query(query, params, (err, rows) => {
+        if(!err){
+            console.log(JSON.stringify(rows));
+            let token = rows[0].sessiontoken;
+            const query = "UPDATE user SET sessiontoken = ? WHERE id = ?";
+            const params = [token + 1, req.params.id];
+            connection.query(query, params, (err, rows) => {
+                if(!err){
+                    token = req.params.id + "a" + token;
+                    console.log(token);
+                    res.send({ok: true, token});
+                }
+                else{
+                    console.error("Error updating session token");
+                }     
+            });
+        }
+        else{
+            console.error("Error getting session token");
+        }
+    });
+});
+
+app.get('/autocomplete', (req, res) =>{
+        const token = req.body.token;
+        const text = req.body.text;
+        //TODO: turn spaces into + signs and abort if a character contains non-number,alpha, or space
+        console.log(`${autocompleteHost}&sessiontoken=${token}&input=${text}`);
+        fetch(`${autocompleteHost}&sessiontoken=${token}&input=${text}`)
+        .then(response => response.json())
+        .then(data => {
+            if(data.ok){
+                console.log(data);
+                const guesses = data.predictions.map(prediction => {return {id: prediction.id, name: prediction.description}});
+                res.send(guesses);
+            }
+            else{
+                console.error(data);
+                res.send({guesses: []});
+            }
+        })
+        .catch(err => console.error(err));
+    }
 })
 
 app.listen(port, () => {
