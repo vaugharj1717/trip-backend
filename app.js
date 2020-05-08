@@ -23,6 +23,27 @@ let credentials = JSON.parse(fs.readFileSync('credentials.json', 'utf-8'));
 let connection = mysql.createConnection(credentials);
 connection.connect();
 
+//find distance from before to this, and from this to next
+function getDurAndDist(first, second){
+    return new Promise( (resolve, reject) => {
+        fetch(`${distanceHost}&origins=place_id:${first}&destinations=place_id:${second}`)
+        .then(response => response.json())
+        .then(data => {
+            if(data.status === "OK"){
+                resolve({
+                    dur: data.rows[0].elements[0].duration.value,
+                    dist: data.rows[0].elements[0].distance.value
+                });
+            }
+            else{
+                reject(new Error(JSON.stringify(data)));
+            } 
+            
+        })
+        
+    })
+}
+
 app.use(function(req, res, next) {
     if (req.session && req.session.user) {
         req.userid = req.session.userid;
@@ -208,8 +229,6 @@ app.post('/trip/:tripid/destination', async (req, res) => {
     let last = false;
     let only = false;
     if(index == 0) first = true;
-    // const url = `https://maps.googleapis.com/maps/api/place/details/json?key=AIzaSyBmWLOxG5pppuLMUMnrr62pTsSzhTsxxl8&place_id=ChIJSx6SrQ9T2YARed8V_f0hOg0`
-
     fetch(url)
     .then(response => response.json())
     .then(data => {
@@ -219,6 +238,8 @@ app.post('/trip/:tripid/destination', async (req, res) => {
             if(data.result.photos) photoRef = data.result.photos[0].photo_reference;
             else photoRef = "nophoto";
             const fetchphotourl = `${photoHost}&photoreference=${photoRef}`;
+
+            //Update indexes of other destinations
             const query = "UPDATE DESTINATION SET dindex = dindex + 1 WHERE dindex >= ? AND tripid = ?";
             const params = [index, tripid];
             connection.beginTransaction(err => {
@@ -228,6 +249,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                 }
                 connection.query(query, params, (err, result) => {
                     if(!err){
+                        //Insert new destination
                         const query = "INSERT INTO DESTINATION(name, dindex, tripid, placeid, url, fetchphotourl) values (?, ?, ?, ?, ?, ?)";
                         const params = [name, index, tripid, placeid, url, photoRef];
                         connection.query(query, params, (err, resultWithId) => {
@@ -240,26 +262,8 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                         const otherDests = result.map(row => {return {id: row.id, placeid: row.placeid}})
                                         if(otherDests.length == 1 && !first) last = true;
                                         if(otherDests.length == 0) only = true;
-                                        //find distance from before to this, and from this to next
-                                        function getDurAndDist(first, second){
-                                            return new Promise( (resolve, reject) => {
-                                                fetch(`${distanceHost}&origins=place_id:${first}&destinations=place_id:${second}`)
-                                                .then(response => response.json())
-                                                .then(data => {
-                                                    if(data.status === "OK"){
-                                                        resolve({
-                                                            dur: data.rows[0].elements[0].duration.value,
-                                                            dist: data.rows[0].elements[0].distance.value
-                                                        });
-                                                    }
-                                                    else{
-                                                        reject(new Error(JSON.stringify(data)));
-                                                    } 
-                                                    
-                                                })
-                                                
-                                            })
-                                        }
+                                        
+                                        //if destination is a middle index, calculate it's new distance, and the destination before it
                                         if(!first && !last && !only){
                                             Promise.all([getDurAndDist(otherDests[0].placeid, placeid), getDurAndDist(placeid, otherDests[1].placeid)])
                                             .then(durdists => {
@@ -290,10 +294,14 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                 throw Error(err);
                                             });
                                         }
+
+                                        //if destination is only destination on trip, do not calculate distance
                                         else if(only){
                                             connection.commit()
                                             res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: {dur: null, dist: null}, durdist2: {dur: null, dist: null}});
                                         }
+
+                                        //if destination is first, just calculate it's distance
                                         else if(first){
                                             getDurAndDist(placeid, otherDests[0].placeid)
                                             .then(durdist => {
@@ -311,6 +319,8 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                 })
                                             })
                                         }
+
+                                        //if destination is last, just calculate the dist of destination before it
                                         else if(last){
                                             getDurAndDist(otherDests[0].placeid, placeid)
                                             .then(durdist => {
@@ -352,23 +362,114 @@ app.post('/trip/:tripid/destination', async (req, res) => {
             throw Error(err);
         }
     })
-    .catch(err => console.error(err));
+    .catch(err => {
+        console.error(err);
+        res.send({ok: false});
+    })
 });
 
 //TODO: Delete all places associated with this trip
-app.delete('/trip/destination/:id', (req, res) => {
-    const id = req.params.id;
-    const query = "DELETE FROM destination WHERE id = ?";
-    params = [id];
-    connection.query(query, params, (err, result) => {
+app.delete('/trip/:tripid/destination/:id', (req, res) => {
+    const id = req.params.id; const tripid = req.params.tripid; const dindex = req.body.dindex;
+    let first = false; let last = false; let only = false;
+    if(dindex == 0) first = true;
+    
+    connection.beginTransaction(err => {
         if(!err){
-            res.send({ok: true});
+            //Delete trip
+            const query = "DELETE FROM destination WHERE id = ?";
+            params = [id];
+            connection.query(query, params, (err, result) => {
+                if(!err){
+                    //Update indexes
+                    const query = "UPDATE destination SET dindex = dindex - 1 WHERE dindex > ? AND tripid = ?";
+                    const params = [dindex, tripid];
+                    connection.query(query, params, (err, result) => {
+                        if(!err){
+                            //Select rows to have distance updated
+                            const query = "SELECT id, placeid FROM destination WHERE (dindex = ? OR dindex = ?) AND tripid = ?";
+                            const params = [dindex - 1, dindex, tripid];
+                            connection.query(query, params, (err, result) => {
+                                if(!err){
+                                    //check if destination was last or only on trip
+                                    const otherDests = result.map(row => {return {id: row.id, placeid: row.placeid}});
+                                    if(otherDests.length == 1 && !first) last = true;
+                                    if(otherDests.length == 0) only = true;
+                                    //if first or only, no work to do
+                                    if(first || only){
+                                        connection.commit();
+                                        res.send({ok: true, durdist: null});
+                                    }
+                                    //if last, update previous destination to be null
+                                    else if(last){
+                                        const query = "UPDATE destination SET dist = null, dur = null WHERE dindex = ? AND tripid = ?";
+                                        const params = [dindex - 1, tripid];
+                                        connection.query(query, params, (err, result) => {
+                                            if(!err){
+                                                connection.commit();
+                                                res.send({ok: true, durdist: null});
+                                            }
+                                            else{
+                                                console.error(err);
+                                                connection.rollback();
+                                                res.send({ok: false})
+                                            }
+                                        })
+                                    }
+                                    //else find new dur/dist for preeding destination
+                                    else{
+                                        getDurAndDist(otherDests[0].placeid, otherDests[1].placeid)
+                                        .then(durdist => {
+                                            //and update preceding destination in database
+                                            const query = "UPDATE destination SET dist = ?, dur = ? WHERE dindex = ? AND tripid = ?";
+                                            const params = [durdist.dist, durdist.dur, dindex - 1, tripid];
+                                            connection.query(query, params, (err, result) => {
+                                                if(!err){
+                                                    
+                                                    connection.commit();
+                                                    res.send({ok:true, durdist: durdist});
+                                                }
+                                                else{
+                                                    console.error(err);
+                                                    connection.rollback();
+                                                    res.send({ok: false});
+                                                }
+                                            })
+                                        })
+                                        .catch(err => {
+                                            console.error(err);
+                                            connection.rollback();
+                                            res.send({ok: false});
+                                        })
+                                    }
+                                }
+                                else{
+                                    console.error(err);
+                                    connection.rollback();
+                                    res.send({ok: false});
+                                }
+                            })
+                        }
+                        else{
+                            console.error(err);
+                            connection.rollback();
+                            res.send({ok: false})
+                        }
+                    });  
+                }
+                else{
+                    console.error(err);
+                    connection.rollback();
+                    res.send({ok: false});
+                }
+            })
         }
-        else{
-            console.error(err);
-        }
-    })
+    });
 });
+
+
+
+//cases: Only or first (do nothing), last (set previous to null), middle (set previous to new value)
 
 app.listen(port, () => {
     console.log(`Listening on port ${port}`);
