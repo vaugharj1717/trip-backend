@@ -11,11 +11,12 @@ app.use(cors());
 app.use(express.json());
 app.use(session({secret: "shhh", saveUninitialized: false, resave: true}));
 
+console.log("hi");
 const port = 3444;
-const apikey = 'AIzaSyBmWLOxG5pppuLMUMnrr62pTsSzhTsxxl8';
+const apikey = 'AIzaSyD1zN1UmwkW5c4LUf5-AUM54_bBinbjMj0'
 const autocompleteHost = `https://maps.googleapis.com/maps/api/place/autocomplete/json?key=${apikey}&types=(cities)&components=country:us`;
-const detailsHost = `https://maps.googleapis.com/maps/api/place/details/json?key=${apikey}&fields=photo,url`;
-const photoHost = `https://maps.googleapis.com/maps/api/place/photo?key=${apikey}&maxwidth=300`;
+const detailsHost = `https://maps.googleapis.com/maps/api/place/details/json?key=${apikey}&fields=photo,url,address_component,utc_offset`;
+const photoHost = `https://maps.googleapis.com/maps/api/place/photo?key=${apikey}&maxwidth=1600`;
 const distanceHost = `https://maps.googleapis.com/maps/api/distancematrix/json?key=${apikey}`;
 
 
@@ -43,6 +44,8 @@ function getDurAndDist(first, second){
         
     })
 }
+
+
 
 app.use(function(req, res, next) {
     if (req.session && req.session.user) {
@@ -164,7 +167,10 @@ app.get('/trip/:id', (req, res) => {
     params = [id];
     connection.query(query, params, (err, rows) => {
         if(!err){
-            const destinations = rows.map(row => ({id: row.id, name: row.name, dindex: row.dindex, tripid: row.tripid, placeid: row.placeid, url:row.url, fetchphotourl:`${photoHost}&photoreference=${row.fetchphotourl}`, dist: row.dist, dur: row.dur}));
+            const destinations = rows.map(row => {
+                let photoref = row.fetchphotourl;
+                const fetchphotourl = photoref === "nophoto" ? "nophoto" : `${photoHost}&photoreference=${row.fetchphotourl}`;
+                return {id: row.id, name: row.name, dindex: row.dindex, tripid: row.tripid, placeid: row.placeid, url:row.url, fetchphotourl: fetchphotourl, dist: row.dist, dur: row.dur, utcoffset: row.utcoffset}});
             res.send({ok: true, destinations: destinations});
         }
         else{
@@ -205,7 +211,8 @@ app.post('/autocomplete', (req, res) =>{
         .then(response => response.json())
         .then(data => {
             if(data.status === "OK"){
-                const guesses = data.predictions.map(prediction => {return {id: prediction.place_id, name: prediction.description}});
+                const guesses = data.predictions.map(prediction => {
+                    return {id: prediction.place_id, name: prediction.description}});
                 res.send({ok: true, guesses});
             }
             else{
@@ -237,7 +244,9 @@ app.post('/trip/:tripid/destination', async (req, res) => {
             let photoRef;
             if(data.result.photos) photoRef = data.result.photos[0].photo_reference;
             else photoRef = "nophoto";
-            const fetchphotourl = `${photoHost}&photoreference=${photoRef}`;
+            let fetchphotourl;
+            fetchphotourl = photoRef === "nophoto" ? "nophoto" : `${photoHost}&photoreference=${photoRef}`;
+            const utcoffset = data.result.utc_offset;
 
             //Update indexes of other destinations
             const query = "UPDATE DESTINATION SET dindex = dindex + 1 WHERE dindex >= ? AND tripid = ?";
@@ -250,8 +259,8 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                 connection.query(query, params, (err, result) => {
                     if(!err){
                         //Insert new destination
-                        const query = "INSERT INTO DESTINATION(name, dindex, tripid, placeid, url, fetchphotourl) values (?, ?, ?, ?, ?, ?)";
-                        const params = [name, index, tripid, placeid, url, photoRef];
+                        const query = "INSERT INTO DESTINATION(name, dindex, tripid, placeid, url, fetchphotourl, utcoffset) values (?, ?, ?, ?, ?, ?, ?)";
+                        const params = [name, index, tripid, placeid, url, photoRef, utcoffset];
                         connection.query(query, params, (err, resultWithId) => {
                             if(!err){
                                 //select destination before and after this one
@@ -275,7 +284,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                         connection.query(updateDurDistQuery, updateDurDistParams2, (err, updateres) => {
                                                             if(!err){
                                                                 connection.commit();
-                                                                res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: durdists[0], durdist2: durdists[1]});
+                                                                res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: durdists[0], durdist2: durdists[1], utcoffset: utcoffset});
                                                             }
                                                             else{
                                                                 connection.rollback();
@@ -298,7 +307,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                         //if destination is only destination on trip, do not calculate distance
                                         else if(only){
                                             connection.commit()
-                                            res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: {dur: null, dist: null}, durdist2: {dur: null, dist: null}});
+                                            res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: {dur: null, dist: null}, durdist2: {dur: null, dist: null}, utcoffset: utcoffset});
                                         }
 
                                         //if destination is first, just calculate it's distance
@@ -310,7 +319,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                 connection.query(updateDurDistQuery, updateDurDistParams2, (err, updateres) => {
                                                     if(!err){
                                                         connection.commit();
-                                                        res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: {dur: null, dist: null}, durdist2: durdist});
+                                                        res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: {dur: null, dist: null}, durdist2: durdist, utcoffset: utcoffset});
                                                     }
                                                     else{
                                                         connection.rollback();
@@ -329,7 +338,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                 connection.query(updateDurDistQuery, updateDurDistParams1, (err, updateres) => {
                                                     if(!err){
                                                         connection.commit();
-                                                        res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: durdist, durdist2: {dur: null, dist: null}});
+                                                        res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: durdist, durdist2: {dur: null, dist: null}, utcoffset: utcoffset});
                                                     }
                                                     else{
                                                         connection.rollback();
