@@ -15,7 +15,7 @@ app.use(session({secret: "shhh", saveUninitialized: false, resave: true}));
 
 console.log("hi");
 const port = 3444;
-const apikey = 'AIzaSyD1zN1UmwkW5c4LUf5-AUM54_bBinbjMj0'
+const apikey = 'hidden'
 const autocompleteHost = `https://maps.googleapis.com/maps/api/place/autocomplete/json?key=${apikey}&types=(cities)&components=country:us`;
 const detailsHost = `https://maps.googleapis.com/maps/api/place/details/json?key=${apikey}&fields=photo,url,address_component,utc_offset`;
 const photoHost = `https://maps.googleapis.com/maps/api/place/photo?key=${apikey}&maxwidth=1600`;
