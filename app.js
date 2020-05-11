@@ -11,13 +11,15 @@ app.use(cors());
 app.use(express.json());
 app.use(session({secret: "shhh", saveUninitialized: false, resave: true}));
 
+//TODO: Fix for hawaii
+
 console.log("hi");
 const port = 3444;
 const apikey = 'AIzaSyD1zN1UmwkW5c4LUf5-AUM54_bBinbjMj0'
 const autocompleteHost = `https://maps.googleapis.com/maps/api/place/autocomplete/json?key=${apikey}&types=(cities)&components=country:us`;
 const detailsHost = `https://maps.googleapis.com/maps/api/place/details/json?key=${apikey}&fields=photo,url,address_component,utc_offset`;
 const photoHost = `https://maps.googleapis.com/maps/api/place/photo?key=${apikey}&maxwidth=1600`;
-const distanceHost = `https://maps.googleapis.com/maps/api/distancematrix/json?key=${apikey}`;
+const distanceHost = `https://maps.googleapis.com/maps/api/distancematrix/json?key=${apikey}&units=imperial`;
 
 
 let credentials = JSON.parse(fs.readFileSync('credentials.json', 'utf-8'));
@@ -32,8 +34,8 @@ function getDurAndDist(first, second){
         .then(data => {
             if(data.status === "OK"){
                 resolve({
-                    dur: data.rows[0].elements[0].duration.value,
-                    dist: data.rows[0].elements[0].distance.value
+                    dur: data.rows[0].elements[0].duration.text,
+                    dist: data.rows[0].elements[0].distance.text
                 });
             }
             else{
@@ -170,7 +172,7 @@ app.get('/trip/:id', (req, res) => {
             const destinations = rows.map(row => {
                 let photoref = row.fetchphotourl;
                 const fetchphotourl = photoref === "nophoto" ? "nophoto" : `${photoHost}&photoreference=${row.fetchphotourl}`;
-                return {id: row.id, name: row.name, dindex: row.dindex, tripid: row.tripid, placeid: row.placeid, url:row.url, fetchphotourl: fetchphotourl, dist: row.dist, dur: row.dur, utcoffset: row.utcoffset}});
+                return {id: row.id, name: row.name, dindex: row.dindex, tripid: row.tripid, placeid: row.placeid, url:row.url, fetchphotourl: fetchphotourl, dist: row.dist, dur: row.dur, utcoffset: row.utcoffset, text: row.text}});
             res.send({ok: true, destinations: destinations});
         }
         else{
@@ -227,7 +229,8 @@ app.post('/autocomplete', (req, res) =>{
 app.post('/trip/:tripid/destination', async (req, res) => {
     const placeid = req.body.placeid;
     const index = req.body.index;
-    const name = req.body.name;
+    const name = req.body.newName;
+    console.log(name);
     const token = req.body.token;
     const tripid = req.params.tripid;
     const url = `${detailsHost}&place_id=${placeid}&sessiontoken=${token}`;
@@ -377,6 +380,21 @@ app.post('/trip/:tripid/destination', async (req, res) => {
     })
 });
 
+app.patch('/trip/:tripid/destination/:id', (req, res) => {
+    const tripid = req.params.tripid;
+    const id = req.params.id;
+    const text = req.body.text;
+    const query = "UPDATE destination SET text = ? WHERE tripid = ? AND id = ?";
+    const params = [text, tripid, id];
+    connection.query(query, params, (err, result) => {
+        if(!err){
+            res.send({ok: true});
+        }
+        else{
+            res.send({ok: false});
+        }
+    });
+})
 //TODO: Delete all places associated with this trip
 app.delete('/trip/:tripid/destination/:id', (req, res) => {
     const id = req.params.id; const tripid = req.params.tripid; const dindex = req.body.dindex;
