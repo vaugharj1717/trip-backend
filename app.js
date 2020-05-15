@@ -3,7 +3,6 @@ const app = express();
 const cors = require('cors');
 const mysql = require('mysql');
 const fs = require('fs');
-const bcrypt = require('bcrypt');
 const session = require('express-session');
 const fetch = require('node-fetch');
 
@@ -59,23 +58,15 @@ function getDurAndDist(first, second){
 app.post('/register', (req, res) => {
     const username = req.body.username;
     const email = req.body.email;
-    
-    //encrypt password
-    bcrypt.hash(req.body.password, 10, (err, password) => {
+    const password = req.body.password;
+    const query = 'INSERT INTO user(username, password, email) VALUES (?, ?, ?)';
+    const params = [username, password, email];
+    connection.query(query, params, (err, result) => {
         if(!err){
-            const query = 'INSERT INTO user(username, password, email) VALUES (?, ?, ?)';
-            const params = [username, password, email];
-            connection.query(query, params, (err, result) => {
-                if(!err){
-                    res.send({ok: true, id: result.insertId});
-                }
-                else {  //failed query
-                    res.send({ok: false});
-                }
-            });
+            res.send({ok: true, id: result.insertId});
         }
-        else{   //failed encryption
-            res.send({ok: false})
+        else {  //failed query
+            res.send({ok: false});
         }
     });
 });
@@ -88,37 +79,24 @@ app.post('/login', async (req, res) => {
     const params = [username];
     connection.query(query, params, (err, rows) => {
         if(!err){
-            if(rows.length > 0){
-                //compare with encrypted password
-                bcrypt.compare(req.body.password, rows[0].password, (err, correct) => {
-                    if(!err && correct){
-                        //Select all user trips
-                        const query = 'SELECT id, name FROM trip WHERE userid = ?';
-                        const params = [rows[0].id];
-                        connection.query(query, params, (err, trips) =>{
-                            if(!err){
-                                const allTrips = trips.map(trip => {return {id: trip.id, name: trip.name}});
-                                res.send({ok: true, success: true, username: rows[0].username, userid: rows[0].id, trips: allTrips});
-                            }
-                            else{   //error with 
-                                res.send({ok: false})
-                            }
-                            
-                        })
+            if(rows.length > 0 && rows[0].password === req.body.password){
+                //Select all user trips
+                const query = 'SELECT id, name FROM trip WHERE userid = ?';
+                const params = [rows[0].id];
+                connection.query(query, params, (err, trips) =>{
+                    if(!err){
+                        const allTrips = trips.map(trip => {return {id: trip.id, name: trip.name}});
+                        res.send({ok: true, success: true, username: rows[0].username, userid: rows[0].id, trips: allTrips});
                     }
-                    else{   //incorrect password or error with bcrypt
-                        console.error("Error 1");
-                        res.send({ok: true, success: false})
+                    else{   //error with query
+                        res.send({ok: false})
                     }
                 });
             }
-            else{   //username does not exist
-                res.send({ok: true, success: false})
-            }  
-        }
-        else {  //error with query
-            console.error(err);
-            res.send({ok: false, success: false});
+            else {  //invalid credentials
+                console.error(err);
+                res.send({ok: false, success: false});
+            }
         }
     })
 });

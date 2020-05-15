@@ -19,7 +19,7 @@ CREATE TABLE destination (
     id SERIAL PRIMARY KEY,
     name VARCHAR(40),
     tripid INT,
-    placeid VARCHAR(50).
+    placeid VARCHAR(50),
     dindex INT,
     url VARCHAR(200),
     dur VARCHAR(40),
