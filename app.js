@@ -255,17 +255,17 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                     throw Error(err);
                 }
                 //Update indexes of other destinations of the trip
-                const query = "UPDATE DESTINATION SET dindex = dindex + 1 WHERE dindex >= ? AND tripid = ?";
+                const query = "UPDATE destination SET dindex = dindex + 1 WHERE dindex >= ? AND tripid = ?";
                 const params = [index, tripid];
                 connection.query(query, params, (err, result) => {
                     if(!err){
                         //Insert new destination into database
-                        const query = "INSERT INTO DESTINATION(name, dindex, tripid, placeid, url, fetchphotourl, utcoffset, month, day, year, hour, min, half) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        const query = "INSERT INTO destination(name, dindex, tripid, placeid, url, fetchphotourl, utcoffset, month, day, year, hour, min, half) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                         const params = [name, index, tripid, placeid, url, photoRef, utcoffset, "01", "01", "2020", "12", "00", "AM"];
                         connection.query(query, params, (err, resultWithId) => {
                             if(!err){
                                 //Select destination before and after new one
-                                const query = "SELECT * FROM DESTINATION WHERE tripid = ? AND (dindex = ? OR dindex = ?) ORDER BY dindex asc"
+                                const query = "SELECT * FROM destination WHERE tripid = ? AND (dindex = ? OR dindex = ?) ORDER BY dindex asc"
                                 const params = [tripid, index - 1, index + 1];
                                 connection.query(query, params, (err, result) => {
                                     if(!err){
