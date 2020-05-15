@@ -350,6 +350,10 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                     }
                                                 })
                                             })
+                                            .catch(err => { //error with google Distance Matrix API request
+                                                connection.rollback();
+                                                res.send({ok: false});
+                                            });
                                         }
 
                                         //if destination is last, just calculate the duration and distance of previous destination to new destination
@@ -369,6 +373,10 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                     }
                                                 })
                                             })
+                                            .catch(err => { //error with google Distance Matrix API request
+                                                connection.rollback();
+                                                res.send({ok: false});
+                                            });
                                         }
                                     }
                                     else{   //Error selecting previous and subsequent destinations
