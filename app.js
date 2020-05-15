@@ -98,6 +98,10 @@ app.post('/login', async (req, res) => {
                 res.send({ok: false, success: false});
             }
         }
+        else{
+            res.send({ok: false, success: false})
+            console.error(err);
+        }
     })
 });
 
@@ -289,6 +293,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                             }
                                                             else{   //error updating previous destinatoin's distance and duration
                                                                 connection.rollback();
+                                                                console.error(err);
                                                                 res.send({ok: false});
                                                             }
                                                         })
@@ -296,12 +301,14 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                     else {  //error updating new destination's distance and duration
                                                         connection.rollback();
                                                         res.send({ok: false});
+                                                        console.error(err);
                                                     };
                                                 })
                                             })
                                             .catch(err => { //error with google Distance Matrix API request
                                                 connection.rollback();
                                                 res.send({ok: false});
+                                                console.error(err);
                                             });
                                         }
 
@@ -324,12 +331,14 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                     }
                                                     else{   //error with updating distance and duration
                                                         connection.rollback();
+                                                        console.error(err);
                                                         res.send({ok: false});
                                                     }
                                                 })
                                             })
                                             .catch(err => { //error with google Distance Matrix API request
                                                 connection.rollback();
+                                                console.error(err);
                                                 res.send({ok: false});
                                             });
                                         }
@@ -347,29 +356,34 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                     }
                                                     else{   //error with updating destination and distance
                                                         connection.rollback();
+                                                        console.error(err);
                                                         res.send({ok: false});
                                                     }
                                                 })
                                             })
                                             .catch(err => { //error with google Distance Matrix API request
                                                 connection.rollback();
+                                                console.error(err);
                                                 res.send({ok: false});
                                             });
                                         }
                                     }
                                     else{   //Error selecting previous and subsequent destinations
                                         connection.rollback();
+                                        console.error(err);
                                         res.send({ok: false});
                                     }      
                                 })     
                             }
                             else{   //error inserting new destination into database
                                 connection.rollback();
+                                console.error(err);
                                 res.send({ok: false});
                             }
                         });
                     } else{     //Error updating indexes of other destinations on the trip
                         connection.rollback();
+                        console.error(err);
                         res.send({ok: false});
                     }
                 })
@@ -377,6 +391,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
         }
         else{   //Error with google details request
             connection.rollback();
+            console.error(err);
             res.send({ok: false});
         }
     })      //Error with google details request

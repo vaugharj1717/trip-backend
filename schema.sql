@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS destination;
 
 CREATE TABLE user (
     id SERIAL PRIMARY KEY,
+    username VARCHAR(20),
     password VARCHAR(40),
     email VARCHAR(45),
     sessiontoken INT
