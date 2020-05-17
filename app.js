@@ -11,7 +11,7 @@ app.use(express.json());
 app.use(session({secret: "shhh", saveUninitialized: false, resave: true}));
 
 
-const port = 3444;
+const port = 8442;
 const apikey = 'AIzaSyD3R07jX6usCTX87A-DfeU_FegLewiZxWw';
 
 //Google API URLs
@@ -24,6 +24,25 @@ const distanceHost = `https://maps.googleapis.com/maps/api/distancematrix/json?k
 let credentials = JSON.parse(fs.readFileSync('credentials.json', 'utf-8'));
 let connection = mysql.createConnection(credentials);
 connection.connect();
+
+//parse date from MSYQL
+function parseMYSQLDate(mysqldate){
+    console.log(mysqldate.getFullYear());
+    console.log(mysqldate.getHours());
+    console.log(mysqldate.getMinutes());
+    console.log(mysqldate.getMonth());
+    console.log(mysqldate.getDate());
+    let hour = mysqldate.getHours() === 0 ? '12' : mysqldate.getHours();
+    if(parseInt(hour) > 12) hour = parseInt(hour) - 12;
+    return {
+        year: mysqldate.getFullYear().toString(),
+        hour: hour.toString(),
+        min: mysqldate.getMinutes().toString().padStart(2, '0'),
+        month: (mysqldate.getMonth() + 1).toString(),
+        day: mysqldate.getDate().toString(),
+        half: mysqldate.getHours() >= 12 ? "PM" : "AM",
+    }
+}
 
 //find duration and distance between two locations using Google Distance Matrix API
 function getDurAndDist(first, second){
@@ -190,23 +209,10 @@ app.get('/trip/:id/destination', (req, res) => {
                     dur: row.dur, 
                     utcoffset: row.utcoffset, 
                     text: row.text, 
-                    arrival: {
-                        month: row.month, 
-                        day: row.day, 
-                        year: row.year, 
-                        hour: row.hour, 
-                        min: row.min, 
-                        half: row.half
-                    }, 
-                    departure: {
-                        month: row.depMonth, 
-                        day: row.depDay, 
-                        year: row.depYear, 
-                        hour: row.depHour, 
-                        min: row.depMin, 
-                        half: row.depHalf}
-                    }
-                });
+                    arrival: parseMYSQLDate(row.arrival),
+                    departure: parseMYSQLDate(row.departure),
+                }
+            });
             res.send({ok: true, destinations: destinations});
         }
         else{   //error with query
@@ -260,8 +266,8 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                 connection.query(query, params, (err, result) => {
                     if(!err){
                         //Insert new destination into database
-                        const query = "INSERT INTO destination(name, dindex, tripid, placeid, url, fetchphotourl, utcoffset, month, day, year, hour, min, half) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                        const params = [name, index, tripid, placeid, url, photoRef, utcoffset, "01", "01", "2020", "12", "00", "AM"];
+                        const query = "INSERT INTO destination(name, dindex, tripid, placeid, url, fetchphotourl, utcoffset, arrival, departure) values (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        const params = [name, index, tripid, placeid, url, photoRef, utcoffset, "2020-01-01 00:00:00", "2020-01-01 00:00:00"];
                         connection.query(query, params, (err, resultWithId) => {
                             if(!err){
                                 //Select destination before and after new one
@@ -425,11 +431,16 @@ app.patch('/trip/:tripid/destination/:id/arrival', (req, res) => {
     const month = req.body.month;
     const day = req.body.day;
     const year = req.body.year;
-    const hour = req.body.hour;
+    let hour;
+    if(req.body.hour === '12' && req.body.half === "AM") hour = '00';
+    else if(req.body.hour === '12' && req.body.half === "PM") hour = '12';
+    else if(req.body.half === "AM") hour = req.body.hour;
+    else if(req.body.half === "PM") hour = parseInt(req.body.hour) + 12;
     const min = req.body.min;
-    const half = req.body.half;
-    const query = "UPDATE destination set month = ?, day = ?, year = ?, hour = ?, min = ?, half = ? WHERE id = ? AND tripid = ?";
-    const params = [month, day, year, hour, min, half, id, tripid];
+    
+    const arrival = `${year}-${month}-${day} ${hour}:${min}:00`;
+    const query = "UPDATE destination set arrival = ? WHERE id = ? AND tripid = ?";
+    const params = [arrival, id, tripid];
     connection.query(query, params, (err, result) => {
         if(!err){
             res.send({ok: true});
@@ -447,11 +458,16 @@ app.patch('/trip/:tripid/destination/:id/departure', (req, res) => {
     const month = req.body.month;
     const day = req.body.day;
     const year = req.body.year;
-    const hour = req.body.hour;
+    let hour;
+    if(req.body.hour === '12' && req.body.half === "AM") hour = '00';
+    else if(req.body.hour === '12' && req.body.half === "PM") hour = '12';
+    else if(req.body.half === "AM") hour = req.body.hour;
+    else if(req.body.half === "PM") hour = parseInt(req.body.hour) + 12;
     const min = req.body.min;
-    const half = req.body.half;
-    const query = "UPDATE destination set depMonth = ?, depDay = ?, depYear = ?, depHour = ?, depMin = ?, depHalf = ? WHERE id = ? AND tripid = ?";
-    const params = [month, day, year, hour, min, half, id, tripid];
+    
+    const departure = `${year}-${month}-${day} ${hour}:${min}:00`;
+    const query = "UPDATE destination set departure = ? WHERE id = ? AND tripid = ?";
+    const params = [departure, id, tripid];
     connection.query(query, params, (err, result) => {
         if(!err){
             res.send({ok: true});
