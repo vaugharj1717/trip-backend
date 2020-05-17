@@ -29,6 +29,6 @@ CREATE TABLE destination (
     utcoffset INT,
     text VARCHAR(500),
     arrival TIMESTAMP NULL,
-    departure TIMESTAMP NULL,
+    departure TIMESTAMP NULL
 );
 
