@@ -28,7 +28,7 @@ CREATE TABLE destination (
     fetchphotourl VARCHAR(200),
     utcoffset INT,
     text VARCHAR(500),
-    arrival TIMESTAMP,
-    departure TIMESTAMP,
+    arrival TIMESTAMP NULL,
+    departure TIMESTAMP NULL,
 );
 

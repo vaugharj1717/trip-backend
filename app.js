@@ -11,7 +11,7 @@ app.use(express.json());
 app.use(session({secret: "shhh", saveUninitialized: false, resave: true}));
 
 
-const port = 8442;
+const port = 3444;
 const apikey = 'AIzaSyD3R07jX6usCTX87A-DfeU_FegLewiZxWw';
 
 //Google API URLs
