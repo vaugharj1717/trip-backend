@@ -28,17 +28,7 @@ CREATE TABLE destination (
     fetchphotourl VARCHAR(200),
     utcoffset INT,
     text VARCHAR(500),
-    month VARCHAR(2),
-    day VARCHAR(2),
-    year VARCHAR(4),
-    hour VARCHAR(2),
-    min VARCHAR(2),
-    half VARCHAR(2),
-    depMonth VARCHAR(2),
-    depDay VARCHAR(2),
-    depYear VARCHAR(4),
-    depHour VARCHAR(2),
-    depMin VARCHAR(2),
-    depHalf VARCHAR(2)
+    arrival TIMESTAMP,
+    departure TIMESTAMP,
 );
 
