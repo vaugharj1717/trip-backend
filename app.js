@@ -295,7 +295,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                         connection.query(updateDurDistQuery, updateDurDistParams2, (err, updateres) => {
                                                             if(!err){
                                                                 connection.commit();
-                                                                res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: durdists[0], durdist2: durdists[1], utcoffset: utcoffset, arrival: {month: "01", day: "01", year: "2020", hour: "12", min: "00", half: "AM"}, departure: {month: "01", day: "01", year: "2020", hour: "12", min: "00", half: "AM"}});
+                                                                res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: durdists[0], durdist2: durdists[1], utcoffset: utcoffset, arrival: {month: "1", day: "1", year: "2020", hour: "12", min: "00", half: "AM"}, departure: {month: "1", day: "1", year: "2020", hour: "12", min: "00", half: "AM"}});
                                                             }
                                                             else{   //error updating previous destinatoin's distance and duration
                                                                 connection.rollback();
@@ -321,7 +321,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                         //if destination is only destination on trip, do not calculate any distances
                                         else if(only){
                                             connection.commit()
-                                            res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: {dur: null, dist: null}, durdist2: {dur: null, dist: null}, utcoffset: utcoffset, arrival: {month: "01", day: "01", year: "2020", hour: "12", min: "00", half: "AM"}, departure: {month: "01", day: "01", year: "2020", hour: "12", min: "00", half: "AM"}});
+                                            res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: {dur: null, dist: null}, durdist2: {dur: null, dist: null}, utcoffset: utcoffset, arrival: {month: "1", day: "1", year: "2020", hour: "12", min: "00", half: "AM"}, departure: {month: "1", day: "1", year: "2020", hour: "12", min: "00", half: "AM"}});
                                         }
 
                                         //if destination is first, just calculate it's distance to the next destination
@@ -333,7 +333,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                 connection.query(updateDurDistQuery, updateDurDistParams2, (err, updateres) => {
                                                     if(!err){
                                                         connection.commit();
-                                                        res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: {dur: null, dist: null}, durdist2: durdist, utcoffset: utcoffset, arrival: {month: "01", day: "01", year: "2020", hour: "12", min: "00", half: "AM"}, departure: {month: "01", day: "01", year: "2020", hour: "12", min: "00", half: "AM"}});
+                                                        res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: {dur: null, dist: null}, durdist2: durdist, utcoffset: utcoffset, arrival: {month: "1", day: "1", year: "2020", hour: "12", min: "00", half: "AM"}, departure: {month: "1", day: "1", year: "2020", hour: "12", min: "00", half: "AM"}});
                                                     }
                                                     else{   //error with updating distance and duration
                                                         connection.rollback();
@@ -358,7 +358,7 @@ app.post('/trip/:tripid/destination', async (req, res) => {
                                                 connection.query(updateDurDistQuery, updateDurDistParams1, (err, updateres) => {
                                                     if(!err){
                                                         connection.commit();
-                                                        res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: durdist, durdist2: {dur: null, dist: null}, utcoffset: utcoffset, arrival: {month: "01", day: "01", year: "2020", hour: "12", min: "00", half: "AM"}, departure: {month: "01", day: "01", year: "2020", hour: "12", min: "00", half: "AM"}});
+                                                        res.send({ok:true, id: resultWithId.insertId, url: url, fetchphotourl: fetchphotourl, durdist1: durdist, durdist2: {dur: null, dist: null}, utcoffset: utcoffset, arrival: {month: "1", day: "1", year: "2020", hour: "12", min: "00", half: "AM"}, departure: {month: "1", day: "1", year: "2020", hour: "12", min: "00", half: "AM"}});
                                                     }
                                                     else{   //error with updating destination and distance
                                                         connection.rollback();
