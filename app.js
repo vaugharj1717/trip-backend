@@ -13,11 +13,12 @@ app.use(session({secret: "shhh", saveUninitialized: false, resave: true}));
 
 const port = 3444;
 const apikey = 'AIzaSyD3R07jX6usCTX87A-DfeU_FegLewiZxWw';
+const clientApiKey = 'AIzaSyCnPsfrl5goNqFRB6NAAcD0rhpd3OAtIiw';
 
 //Google API URLs
 const autocompleteHost = `https://maps.googleapis.com/maps/api/place/autocomplete/json?key=${apikey}&types=(cities)&components=country:us`;
 const detailsHost = `https://maps.googleapis.com/maps/api/place/details/json?key=${apikey}&fields=photo,url,address_component,utc_offset`;
-const photoHost = `https://maps.googleapis.com/maps/api/place/photo?key=${apikey}&maxwidth=1600`;
+const photoHost = `https://maps.googleapis.com/maps/api/place/photo?key=${clientApiKey}&maxwidth=1600`;
 const distanceHost = `https://maps.googleapis.com/maps/api/distancematrix/json?key=${apikey}&units=imperial`;
 
 
