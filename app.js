@@ -5,15 +5,18 @@ const mysql = require('mysql');
 const fs = require('fs');
 const session = require('express-session');
 const fetch = require('node-fetch');
+const path = require('path');
+const dotenv = require('dotenv').config({ path: path.resolve(__dirname, 'globals.env') });
+
 
 app.use(cors());
 app.use(express.json());
-app.use(session({secret: "shhh", saveUninitialized: false, resave: true}));
+app.use(session({secret: process.env.SECRET, saveUninitialized: false, resave: true}));
 
 
-const port = 3444;
-const apikey = 'AIzaSyD3R07jX6usCTX87A-DfeU_FegLewiZxWw';
-const clientApiKey = 'AIzaSyCnPsfrl5goNqFRB6NAAcD0rhpd3OAtIiw';
+const port = process.env.PORT;
+const apikey = process.env.APIKEY;
+const clientApiKey = process.env.CLIENTAPIKEY;
 
 //Google API URLs
 const autocompleteHost = `https://maps.googleapis.com/maps/api/place/autocomplete/json?key=${apikey}&types=(cities)&components=country:us`;
