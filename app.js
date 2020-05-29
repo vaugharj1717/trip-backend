@@ -517,7 +517,7 @@ app.delete('/trip/:tripid/destination/:id', (req, res) => {
                                     //if first or only, no work to do
                                     if(first || only){
                                         connection.commit();
-                                        res.send({ok: true, durdist: null});
+                                        res.send({ok: true, durdist: {dur: null, dist: null}});
                                     }
                                     //if deleted destination was last destination, set previous destination's distance and duration to null
                                     else if(last){
@@ -526,7 +526,7 @@ app.delete('/trip/:tripid/destination/:id', (req, res) => {
                                         connection.query(query, params, (err, result) => {
                                             if(!err){
                                                 connection.commit();
-                                                res.send({ok: true, durdist: null});
+                                                res.send({ok: true, durdist: {dur: null, dist: null}});
                                             }
                                             else{   //error updating distance and duration of previous destination
                                                 console.error(err);
@@ -615,7 +615,7 @@ app.get('/sessiontoken/:id', (req, res) => {
 });
 
 //Issue autocomplete to Google Places Autocomplete service
-app.post('/autocomplete', (req, res) =>{
+app.post('/autocomplete', (req, res) => {
         const token = req.body.token;
         const text = req.body.text;
         //issue request to Google Places Autocomplete
