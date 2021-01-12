@@ -592,7 +592,7 @@ app.delete('/trip/:tripid/destination/:id', (req, res) => {
 
 //Google Autocomplete API Management endpoints
 app.get('/sessiontoken/:id', (req, res) => {
-    //use userID + 'a' + incremented session token ID to form unique session token
+    //use userID + ':token:' + incremented session token ID to form unique session token
     const query = "SELECT sessiontoken FROM user WHERE id = ?";
     const params = [req.params.id];
     connection.query(query, params, (err, rows) => {
@@ -603,7 +603,7 @@ app.get('/sessiontoken/:id', (req, res) => {
             const params = [token + 1, req.params.id];
             connection.query(query, params, (err, rows) => {
                 if(!err){
-                    token = req.params.id + "a" + token;
+                    token = req.params.id + ":token:" + token;
                     res.send({ok: true, token});
                 }
                 else{   //error incrementing session token id
